@@ -202,7 +202,7 @@ encoder_emb_inp = embedding_ops.embedding_lookup(
     embedding_encoder, encoder_inputs)
 ```
 
-Similarly, we can build *embedding_decoder* and *decoder_emb_inp*. Note that one
+Similarly, we can build `embedding_decoder` and `decoder_emb_inp`. Note that one
 can choose to initialize embedding weights with pretrained word representations
 such as word2vec or Glove vectors. In general, given a large amount of training
 data we can learn these embeddings from scratch.
@@ -221,7 +221,7 @@ same weights; however, in practice, we often use two different RNN parameters
 encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units)
 
 # Run Dynamic RNN
-#   encoder_outpus: [max_time, batch_size, num_units]
+#   encoder_outputs: [max_time, batch_size, num_units]
 #   encoder_state: [batch_size, num_units]
 encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
     encoder_cell, encoder_emb_inp,
@@ -229,9 +229,9 @@ encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
 ```
 
 Note that sentences have different lengths to avoid wasting computation, we tell
-*dynamic_rnn* the exact source sentence lengths through
-*source_sequence_length*. Since our input is time major, we set
-*time_major=True*. Here, we build only a single layer LSTM, *encoder_cell*. We
+`dynamic_rnn` the exact source sentence lengths through
+`source_sequence_length`. Since our input is time major, we set
+`time_major=True`. Here, we build only a single layer LSTM, `encoder_cell`. We
 will describe how to build multi-layer LSTMs, add dropout, and use attention in
 a later section.
 
@@ -239,7 +239,7 @@ a later section.
 
 The *decoder* also needs to have access to the source information, and one
 simple way to achieve that is to initialize it with the last hidden state of the
-encoder, *encoder_state*. In Figure 2, we pass the hidden state at the source
+encoder, `encoder_state`. In Figure 2, we pass the hidden state at the source
 word "student" to the decoder side.
 
 ``` python
@@ -260,26 +260,25 @@ outputs, _ = tf.contrib.seq2seq.dynamic_decode(decoder, ...)
 logits = outputs.rnn_output
 ```
 
-Here, the core part of this code is the *BasicDecoder* object, *decoder*, which
-receives *decoder_cell* (similar to encoder_cell), a *helper*, and the previous
-*encoder_state* as inputs. By separating out decoders and helpers, we can reuse
-different codebases, e.g., *TrainingHelper* can be substituted with
-*GreedyEmbeddingHelper* to do greedy decoding. See more
+Here, the core part of this code is the `BasicDecoder` object, `decoder`, which
+receives `decoder_cell` (similar to encoder_cell), a `helper`, and the previous
+`encoder_state` as inputs. By separating out decoders and helpers, we can reuse
+different codebases, e.g., `TrainingHelper` can be substituted with
+`GreedyEmbeddingHelper` to do greedy decoding. See more
 in
 [helper.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/contrib/seq2seq/python/ops/helper.py).
 
-Lastly, we haven't mentioned *projection_layer* which is a dense matrix to turn
+Lastly, we haven't mentioned `projection_layer` which is a dense matrix to turn
 the top hidden states to logit vectors of dimension V. We illustrate this
 process at the top of Figure 2.
 
 ``` python
-projection_layer = layers_core.Dense(
-    tgt_vocab_size, use_bias=False)
+projection_layer = tf.layers.Dense(tgt_vocab_size, use_bias=False)
 ```
 
 ### Loss
 
-Given the *logits* above, we are now ready to compute our training loss:
+Given the `logits` above, we are now ready to compute our training loss:
 
 ``` python
 crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -288,17 +287,17 @@ train_loss = (tf.reduce_sum(crossent * target_weights) /
     batch_size)
 ```
 
-Here, *target_weights* is a zero-one matrix of the same size as
-*decoder_outputs*. It masks padding positions outside of the target sequence
+Here, `target_weights` is a zero-one matrix of the same size as
+`decoder_outputs`. It masks padding positions outside of the target sequence
 lengths with values 0.
 
 ***Important note***: It's worth pointing out that we divide the loss by
-*batch_size*, so our hyperparameters are "invariant" to batch_size. Some people
-divide the loss by (*batch_size* * *num_time_steps*), which plays down the
-errors made on short sentences. More subtly, our hyperparameters (applied to the
-former way) can't be used for the latter way. For example, if both approaches
-use SGD with a learning of 1.0, the latter approach effectively uses a much
-smaller learning rate of 1 / *num_time_steps*.
+`batch_size`, so our hyperparameters are "invariant" to `batch_size`. Some
+people divide the loss by (*batch_size* * *num_time_steps*), which plays down
+the errors made on short sentences. More subtly, our hyperparameters (applied to
+the former way) can't be used for the latter way. For example, if both
+approaches use SGD with a learning rate of 1.0, the latter approach effectively
+uses a much smaller learning rate of 1 / *num_time_steps*.
 
 ### Gradient computation & optimization
 
@@ -314,10 +313,10 @@ clipped_gradients, _ = tf.clip_by_global_norm(
 ```
 
 One of the important steps in training RNNs is gradient clipping. Here, we clip
-by the global norm.  The max value, *max_gradient_norm*, is often set to a value
+by the global norm.  The max value, `max_gradient_norm`, is often set to a value
 like 5 or 1. The last step is selecting the optimizer.  The Adam optimizer is a
-common choice.  We also select a learning rate.  The value of *learning_rate*
-can is usually in the range 0.0001 to 0.001; and can be set to decrease as
+common choice.  We also select a learning rate.  The value of `learning_rate`
+is usually in the range 0.0001 to 0.001; and can be set to decrease as
 training progresses.
 
 ``` python
@@ -327,9 +326,9 @@ update_step = optimizer.apply_gradients(
     zip(clipped_gradients, params))
 ```
 
-In our own experiments, we use standard SGD (tf.train.GradientDescentOptimizer)
-with a decreasing learning rate schedule, which yields better performance. See
-the [benchmarks](#benchmarks).
+In our own experiments, we use standard SGD
+(`tf.train.GradientDescentOptimizer`) with a decreasing learning rate schedule,
+which yields better performance. See the [benchmarks](#benchmarks).
 
 ## Hands-on – Let's train an NMT model
 
@@ -339,13 +338,13 @@ is
 [**nmt.py**](nmt/nmt.py).
 
 We will use a *small-scale parallel corpus of TED talks* (133K training
-examples) for this exercise. All data we used here can be found
+examples) for this exercise. All data we use here can be found
 at:
 [https://nlp.stanford.edu/projects/nmt/](https://nlp.stanford.edu/projects/nmt/). We
 will use tst2012 as our dev dataset, and tst2013 as our test dataset.
 
 Run the following command to download the data for training NMT model:\
-	`nmt/scripts/download_iwslt15.sh /tmp/nmt_data`
+  `nmt/scripts/download_iwslt15.sh /tmp/nmt_data`
 
 Run the following command to start the training:
 
@@ -395,7 +394,7 @@ tensorboard --port 22222 --logdir /tmp/nmt_model/
 ```
 
 Training the reverse direction from English and Vietnamese can be done simply by changing:\
-	`--src=en --tgt=vi`
+  `--src=en --tgt=vi`
 
 ## Inference – How to generate translations
 
@@ -403,7 +402,7 @@ While you're training your NMT models (and once you have trained models), you
 can obtain translations given previously unseen source sentences. This process
 is called inference. There is a clear distinction between training and inference
 (*testing*): at inference time, we only have access to the source sentence,
-i.e., *encoder_inputs*. There are many ways to perform decoding.  Decoding
+i.e., `encoder_inputs`. There are many ways to perform decoding.  Decoding
 methods include greedy, sampling, and beam-search decoding. Here, we will
 discuss the greedy decoding strategy.
 
@@ -451,8 +450,8 @@ outputs, _ = tf.contrib.seq2seq.dynamic_decode(
 translations = outputs.sample_id
 ```
 
-Here, we use *GreedyEmbeddingHelper* instead of *TrainingHelper*. Since we do
-not know the target sequence lengths in advance, we use *maximum_iterations* to
+Here, we use `GreedyEmbeddingHelper` instead of `TrainingHelper`. Since we do
+not know the target sequence lengths in advance, we use `maximum_iterations` to
 limit the translation lengths. One heuristic is to decode up to two times the
 source sentence lengths.
 
@@ -614,16 +613,16 @@ attention_mechanism = tf.contrib.seq2seq.LuongAttention(
     memory_sequence_length=source_sequence_length)
 ```
 
-In the previous [Encoder](#encoder) section, *encoder_outputs* is the set of all
-source hidden states at the top layer and has the shape of *[max_time,
-batch_size, num_units]* (since we use *dynamic_rnn* with *time_major* set to
-*True* for efficiency). For the attention mechanism, we need to make sure the
+In the previous [Encoder](#encoder) section, `encoder_outputs` is the set of all
+source hidden states at the top layer and has the shape of `[max_time,
+batch_size, num_units]` (since we use `dynamic_rnn` with `time_major` set to
+`True` for efficiency). For the attention mechanism, we need to make sure the
 "memory" passed in is batch major, so we need to transpose
-*attention_states*. We pass *source_sequence_length* to the attention mechanism
+`attention_states`. We pass `source_sequence_length` to the attention mechanism
 to ensure that the attention weights are properly normalized (over non-padding
 positions only).
 
-Having defined an attention mechanism, we use *AttentionWrapper* to wrap the
+Having defined an attention mechanism, we use `AttentionWrapper` to wrap the
 decoding cell:
 
 ``` python
@@ -804,8 +803,8 @@ for i in itertools.count():
 Notice how the latter approach is "ready" to be converted to a distributed
 version.
 
-One other difference in the new approach is that instead of using *feed_dicts*
-to feed data at each *session.run* call (and thereby performing our own
+One other difference in the new approach is that instead of using `feed_dict`
+to feed data at each `session.run` call (and thereby performing our own
 batching, bucketing, and manipulating of data), we use stateful iterator
 objects.  These iterators make the input pipeline much easier in both the
 single-machine and distributed setting. We will cover the new input data
@@ -816,11 +815,11 @@ pipeline (as introduced in TensorFlow 1.2) in the next section.
 Prior to TensorFlow 1.2, users had two options for feeding data to the
 TensorFlow training and eval pipelines:
 
-1. Feed data directly via *feed_dict* at each training *session.run* call.
-1. Use the queueing mechanisms in *tf.train* (e.g. *tf.train.batch*) and
-   *tf.contrib.train*.
-1. Use helpers from a higher level framework like *tf.contrib.learn* or
-   *tf.contrib.slim* (which effectively use #2).
+1. Feed data directly via `feed_dict` at each training `session.run` call.
+1. Use the queueing mechanisms in `tf.train` (e.g. `tf.train.batch`) and
+   `tf.contrib.train`.
+1. Use helpers from a higher level framework like `tf.contrib.learn` or
+   `tf.contrib.slim` (which effectively use #2).
 
 The first approach is easier for users who aren't familiar with TensorFlow or
 need to do exotic input modification (i.e., their own minibatch queueing) that
@@ -832,7 +831,7 @@ than using *feed_dict* and are the standard for both single-machine and
 distributed training.
 
 Starting in TensorFlow 1.2, there is a new system available for reading data
-into TensorFlow models: dataset iterators, as found in the **tf.contrib.data**
+into TensorFlow models: dataset iterators, as found in the `tf.contrib.data`
 module. Data iterators are flexible, easy to reason about and to manipulate, and
 provide efficiency and multithreading by leveraging the TensorFlow C++ runtime.
 
@@ -889,7 +888,7 @@ source_target_dataset = tf.contrib.data.Dataset.zip((source_dataset, target_data
 ```
 
 Batching of variable-length sentences is straightforward. The following
-transformation batches *batch_size* elements from *source_target_dataset*, and
+transformation batches `batch_size` elements from `source_target_dataset`, and
 respectively pads the source and target vectors to the length of the longest
 source and target vector in each batch.
 
@@ -907,7 +906,7 @@ batched_dataset = source_target_dataset.padded_batch(
 ```
 
 Values emitted from this dataset will be nested tuples whose tensors have a
-leftmost dimension of size *batch_size*.  The structure will be:
+leftmost dimension of size `batch_size`.  The structure will be:
 
 -  iterator[0][0] has the batched and padded source sentence matrices.
 -  iterator[0][1] has the batched source size vectors.
@@ -932,7 +931,7 @@ batched_iterator = batched_dataset.make_initializable_iterator()
 session.run(batched_iterator.initializer, feed_dict={...})
 ```
 
-Once the iterator is initialized, every *session.run* call that accesses source
+Once the iterator is initialized, every `session.run` call that accesses source
 or target tensors will request the next minibatch from the underlying dataset.
 
 ## Other details for better NMT models
